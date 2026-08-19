@@ -45,5 +45,16 @@ next-env.d.ts
 # database
 *.db
 *.db-journal
+
+# BMAD and Agents
+_bmad/
+_bmad-output/
+.bmad-loop/
+.agents/
+.claude/
+.windsurf/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
 *.sqlite
 *.sqlite3
