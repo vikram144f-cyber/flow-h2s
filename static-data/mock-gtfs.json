@@ -1,0 +1,70 @@
+{
+  "journeys": [
+    {
+      "id": "mock-aarav-journey",
+      "origin": "Home",
+      "destination": "Campus",
+      "legs": [
+        {
+          "id": "leg-1",
+          "type": "BUS",
+          "routeId": "Bus 21",
+          "originNode": "Home Station",
+          "destinationNode": "Transit Hub",
+          "scheduledDeparture": "2026-08-19T08:00:00Z",
+          "scheduledArrival": "2026-08-19T08:20:00Z",
+          "historicalP95DelayMinutes": 5,
+          "actualSimulatedDelayMinutes": 20
+        },
+        {
+          "id": "leg-2",
+          "type": "METRO",
+          "routeId": "Blue Line",
+          "originNode": "Transit Hub",
+          "destinationNode": "Campus Station",
+          "scheduledDeparture": "2026-08-19T08:43:00Z",
+          "scheduledArrival": "2026-08-19T08:55:00Z",
+          "historicalP95DelayMinutes": 3,
+          "headwayMinutes": 15
+        }
+      ],
+      "transfers": [
+        {
+          "id": "transfer-1",
+          "fromLegId": "leg-1",
+          "toLegId": "leg-2",
+          "requiredTransferTime": 300
+        }
+      ],
+      "fallbacks": [
+        {
+          "routeId": "Route B",
+          "type": "TRAIN",
+          "confidence": 93,
+          "timeDelta": 4,
+          "costDelta": 2,
+          "ecoImpact": "neutral",
+          "capacity": 200
+        },
+        {
+          "routeId": "Route C",
+          "type": "BUS",
+          "confidence": 88,
+          "timeDelta": 15,
+          "costDelta": -1,
+          "ecoImpact": "green",
+          "capacity": 800
+        },
+        {
+          "routeId": "Route D",
+          "type": "METRO",
+          "confidence": 95,
+          "timeDelta": 8,
+          "costDelta": 5,
+          "ecoImpact": "red",
+          "capacity": 350
+        }
+      ]
+    }
+  ]
+}

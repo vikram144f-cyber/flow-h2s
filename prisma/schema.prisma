@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Journey {
+  id              String     @id @default(uuid())
+  status          String     // PLANNED, ACTIVE, AT_RISK, RECOVERY_OFFERED, RECOVERED, COMPLETED
+  origin          String
+  destination     String
+  currentConfidence Int?     @default(100)
+  explainabilityPayload String?
+  recoveredRouteId      String?
+  riskDetectionTime     DateTime?
+  startTime       DateTime
+  endTime         DateTime?
+  legs            Leg[]
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model Leg {
+  id                  String    @id @default(uuid())
+  journeyId           String
+  journey             Journey   @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  type                String    // BUS, TRAIN, METRO, WALK
+  routeId             String?   // E.g. "Bus 21"
+  originNode          String
+  destinationNode     String
+  scheduledDeparture  DateTime
+  predictedDeparture  DateTime?
+  scheduledArrival    DateTime
+  predictedArrival    DateTime?
+  historicalP95DelayMinutes Int @default(5)
+  order               Int
+  transferFrom        Transfer? @relation("FromLeg")
+  transferTo          Transfer? @relation("ToLeg")
+}
+
+model Transfer {
+  id                    String @id @default(uuid())
+  fromLegId             String @unique
+  fromLeg               Leg    @relation("FromLeg", fields: [fromLegId], references: [id])
+  toLegId               String @unique
+  toLeg                 Leg    @relation("ToLeg", fields: [toLegId], references: [id])
+  requiredTransferTime  Int    // in seconds
+}
