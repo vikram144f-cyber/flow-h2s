@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/db';
 import mockData from '../../../static-data/mock-gtfs.json';
+import type { RouteOption } from '../../../lib/types';
 
 export async function GET() {
   try {
@@ -20,7 +21,7 @@ export async function GET() {
     // Parse the explainability payload if it exists
     const payload = journey.explainabilityPayload ? JSON.parse(journey.explainabilityPayload) : null;
 
-    let selectedRoute: any = null;
+    let selectedRoute: (RouteOption & { departureTime: string; arrivalTime: string }) | null = null;
     if (journey.status === 'RECOVERED' && journey.recoveredRouteId) {
       const mockJourney = mockData.journeys.find(j => j.id === journey.id);
       if (mockJourney && mockJourney.fallbacks) {
@@ -59,7 +60,7 @@ export async function GET() {
       explainabilityPayload: payload,
       selectedRoute
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/journey:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

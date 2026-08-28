@@ -5,7 +5,7 @@ export async function POST() {
   try {
     const result = await resetDatabaseToDeterministicSeed();
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/reset-demo:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

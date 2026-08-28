@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/db';
 import { validateTransition } from '../../../../lib/modules/journey/state-machine';
 import mockData from '../../../../static-data/mock-gtfs.json';
+import { errorMessage, hasErrorMessage } from '../../../../lib/http';
 
 export async function POST() {
   try {
@@ -19,9 +20,9 @@ export async function POST() {
 
     // BUG-04: Derive the active confidence from the recovered fallback route,
     // not from the stale disrupted-route confidence that was left in the DB.
-    const mockJourney = (mockData as any).journeys.find((j: any) => j.id === journey.id);
+    const mockJourney = mockData.journeys.find(j => j.id === journey.id);
     const recoveredFallback = mockJourney?.fallbacks?.find(
-      (f: any) => f.routeId === journey.recoveredRouteId
+      f => f.routeId === journey.recoveredRouteId
     );
 
     if (!recoveredFallback) {
@@ -50,10 +51,11 @@ export async function POST() {
       activeRouteId: journey.recoveredRouteId,
       currentConfidence: recoveredFallback.confidence,
     });
-  } catch (e: any) {
-    if (e.message && e.message.includes('Invalid state transition')) {
-      return NextResponse.json({ error: e.message }, { status: 409 });
+  } catch (error: unknown) {
+    if (hasErrorMessage(error, 'Invalid state transition')) {
+      return NextResponse.json({ error: errorMessage(error) }, { status: 409 });
     }
-    return NextResponse.json({ error: e.message || 'Internal server error' }, { status: 500 });
+    console.error('Error in /api/journey/continue:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

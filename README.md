@@ -1,97 +1,90 @@
-# 🌊 FLOW: The Graceful Degradation Router
+# FLOW — Transit Network Intelligence
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3.1-black)
 ![React](https://img.shields.io/badge/React-19.2.8-blue)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-38B2AC)
 
-*A "never stranded" guarantee for multimodal commuters.*
+FLOW is a deterministic transit-network simulation that explores how a routing system can preserve successful journeys when many commuters converge on the same route. It compares conventional fastest-route assignment with a capacity-aware, preference-weighted distribution strategy.
 
----
+The project is intentionally a local simulation. It does not currently consume live GTFS or GTFS-RT feeds, and its transit data is synthetic fixture data in `static-data/mock-gtfs.json`.
 
-## 📖 Table of Contents
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Built With](#-built-with)
-- [Getting Started](#-getting-started)
-- [Project Architecture](#-project-architecture)
-- [Documentation](#-documentation)
+## What it demonstrates
 
----
+- A connection-confidence model based on transfer buffers and historical delay margins.
+- A journey state machine covering active, at-risk, recovery, and completed states.
+- Explainable fallback recommendations when a simulated delay threatens a transfer.
+- Deterministic commuter preference generation from a seeded PRNG.
+- Capacity-aware route assignment that exposes secondary bottlenecks.
+- A generated network view with bus, metro, and walking connections.
 
-## 🚀 Overview
+## Built with
 
-FLOW is a predictive multimodal coordination system designed to eliminate "transfer anxiety." Instead of offering the absolute fastest route based on theoretical P50 estimates, FLOW acts as an intelligent transit layer. It continuously calculates a **Connection Confidence Score** for your journey based on live GTFS-RT delays. 
+- Next.js App Router and React
+- Tailwind CSS v4 and Lucide React
+- TypeScript
+- Prisma ORM with MySQL
+- Node's built-in test runner through `tsx`
 
-If the score drops below a safe threshold, the system proactively pushes a transparently ranked fallback route before you reach the failing node, ensuring you are never stranded.
-
-## ✨ Key Features
-
-- **Connection Confidence Score:** A continuous probability metric (separating "theoretical speed" from "likely to succeed") that alerts you when a transfer buffer shrinks.
-- **Proactive "Rescue" Pattern:** The system interrupts the UI *before* failure, providing a fully actionable alternative. 
-- **Transparent Fallback Ranking:** When a delay occurs, fallbacks are evaluated and ranked based on **Reliability + Arrival Time + Cost + Eco Impact**.
-- **Cascading Failure Protection:** If the accepted fallback *also* fails, the continuous monitoring dynamically kicks in again.
-- **Premium Glassmorphic UI:** Deep Dark Mode, dynamic semantic glowing gauges (Emerald/Amber/Red), and smooth modal sheet transitions.
-
-## 🛠️ Built With
-
-- **Framework:** [Next.js (App Router)](https://nextjs.org/)
-- **Styling:** Custom [Tailwind CSS v4](https://tailwindcss.com/) & Glassmorphic UI
-- **Database:** SQLite with [Prisma ORM](https://www.prisma.io/) & [libSQL](https://docs.turso.tech/libsql)
-- **Icons:** [Lucide React](https://lucide.dev/)
-- **Data Fetching:** [SWR](https://swr.vercel.app/)
-
-## 🏃‍♂️ Getting Started
-
-To run the FLOW MVP simulation locally, follow these steps:
+## Getting started
 
 ### Prerequisites
 
-- Node.js (v20+ recommended)
-- npm or yarn
+- Node.js 20+
+- npm
+- MySQL 8+
 
-### Installation
+### Install and configure
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/vikram144f-cyber/flow-h2s.git
-   cd flow-h2s
-   ```
+```bash
+git clone https://github.com/vikram144f-cyber/flow-h2s.git
+cd flow-h2s
+npm ci
+```
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+Copy `.env.example` to `.env` and update `DATABASE_URL` with a MySQL database that the application can access.
 
-3. **Set up the database:**
-   Ensure you have a `.env` file with any required environment variables (if applicable for Prisma). Generate Prisma client:
-   ```bash
-   npx prisma generate
-   ```
+```bash
+npm run db:generate
+npm run db:push
+npm run db:seed
+```
 
-4. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
+### Run locally
 
-5. **Explore the Demo:**
-   Open [http://localhost:3000](http://localhost:3000) with your browser. The simulation will showcase the Confidence Gauge, Timeline, and cascading simulated transit delays triggering the Rescue Pattern.
+```bash
+npm run dev
+```
 
-## 🏗️ Project Architecture
+Open [http://localhost:3000](http://localhost:3000) for the commuter demo. The operator simulation is available at [http://localhost:3000/operator](http://localhost:3000/operator).
 
-FLOW is structured with a modern Next.js App Router architecture:
-- `app/` - Core routing, layouts, and page views.
-- `components/` - Reusable React components (UI elements, layout wrappers).
-- `lib/` - Utility functions, configurations, and shared logic.
-- `prisma/` - Database schema and seed scripts.
-- `public/` - Static assets.
+## Verification
 
-## 📂 Documentation
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
 
-The initial product specs, architecture spines, and design philosophies created during brainstorming can be found in the `_bmad-output/` directory:
-- [PRD & Brief](_bmad-output/planning-artifacts/prds/prd-nexus-hack-2026-08-19/prd.md)
-- [UX Flow Design](_bmad-output/planning-artifacts/ux-designs/ux-nexus-hack-2026-08-19/DESIGN.md)
-- [Architecture](_bmad-output/planning-artifacts/architecture/architecture-nexus-hack-2026-08-19/ARCHITECTURE-SPINE.md)
+The test suite uses deterministic fixture data and does not download external models or datasets. Database-backed tests run when `DATABASE_URL` is configured; otherwise those two integration suites are reported as skipped. To run them, initialize MySQL with `npm run db:push` and `npm run db:seed`.
 
----
-*Built for the NEXUS HACKATHON (August 2026)*
+## Architecture
+
+```text
+app/
+  page.tsx                         commuter recovery demo
+  (operator)/operator/             network simulation dashboard
+  api/                             journey and simulation route handlers
+lib/
+  modules/journey/                 state transitions, delays, explanations
+  modules/routing/                 confidence and fallback scoring
+  modules/network/                 synthetic graph generation and routing
+  modules/simulation/              seeded commuter and capacity simulation
+prisma/
+  schema.prisma                    MySQL persistence model
+static-data/mock-gtfs.json         deterministic demo fixture
+```
+
+## Scope and next steps
+
+FLOW is a focused engineering prototype rather than a production transit platform. A production version would need live feed ingestion, time-dependent routing, stronger persistence boundaries, observability, and user-level authorization. Those concerns are deliberately outside this deterministic demo.

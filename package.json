@@ -1,5 +1,5 @@
 {
-  "name": "temp-app",
+  "name": "flow-h2s",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,12 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test --test-concurrency=1 lib/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --import dotenv/config --test --test-concurrency=1 lib/**/*.test.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.4",
-    "@prisma/adapter-libsql": "^7.9.1",
     "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
     "lucide-react": "^1.32.0",

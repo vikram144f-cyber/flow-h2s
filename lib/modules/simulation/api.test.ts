@@ -30,4 +30,32 @@ test('Simulation API', async (t) => {
     assert.strictEqual(data.totalCommuters, 10);
     assert.ok(!data.error);
   });
+
+  await t.test('rejects fractional commuter counts', async () => {
+    const req = new Request('http://localhost/api/simulation/run', {
+      method: 'POST',
+      body: JSON.stringify({ commuterCount: 10.5, seed: 42 })
+    });
+    const res = await runSimulationApi(req);
+    assert.strictEqual(res.status, 400);
+  });
+
+  await t.test('rejects unsupported network scales', async () => {
+    const req = new Request('http://localhost/api/simulation/run', {
+      method: 'POST',
+      body: JSON.stringify({ commuterCount: 10, seed: 42, networkScale: 'unknown' })
+    });
+    const res = await runSimulationApi(req);
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual((await res.json()).error, 'networkScale is invalid');
+  });
+
+  await t.test('rejects malformed JSON', async () => {
+    const req = new Request('http://localhost/api/simulation/run', {
+      method: 'POST',
+      body: '{not-json'
+    });
+    const res = await runSimulationApi(req);
+    assert.strictEqual(res.status, 400);
+  });
 });

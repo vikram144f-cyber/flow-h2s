@@ -3,6 +3,7 @@ import mockData from '../../../static-data/mock-gtfs.json';
 import { FallbackOption, rankFallbacks, ScoredFallback } from '../routing/fallback-scoring';
 import { generateNetwork } from '../network/generator';
 import { findAlternativePaths, pathsToFallbacks } from '../network/routing';
+import type { NetworkGraphData } from '../../types';
 
 export interface SyntheticCommuter {
   id: string;
@@ -63,19 +64,22 @@ export interface ComparisonSimulationResult {
     commuterId: string;
     explanation: string;
   }>;
-  networkGraph?: any; // Include for visualization
+  networkGraph: NetworkGraphData | null; // Include for visualization
 }
 
 export function runSimulation(count: number, seed: number, strategy: 'baseline' | 'comparison' = 'baseline', networkScale: string = 'canonical'): SimulationResult | ComparisonSimulationResult {
-  if (count <= 0) {
+  if (!Number.isInteger(count) || count <= 0) {
     throw new Error('Commuter count must be positive');
+  }
+  if (!Number.isFinite(seed)) {
+    throw new Error('Simulation seed must be finite');
   }
 
   const random = mulberry32(seed);
   
   let fallbacks: (FallbackOption & { capacity?: number })[] = [];
-  let fastestFallback: any;
-  let networkGraph: any = null;
+  let fastestFallback: (FallbackOption & { capacity?: number }) | undefined;
+  let networkGraph: NetworkGraphData | null = null;
 
   if (networkScale === 'canonical') {
     const mockJourney = mockData.journeys.find(j => j.id === 'mock-aarav-journey');
@@ -99,6 +103,10 @@ export function runSimulation(count: number, seed: number, strategy: 'baseline' 
     const paths = findAlternativePaths(network, 'hub-0', 'stop-10', 5); // Use deterministic O-D
     fallbacks = pathsToFallbacks(paths);
     fastestFallback = fallbacks[0];
+  }
+
+  if (fallbacks.length === 0 || !fastestFallback) {
+    throw new Error('No route alternatives available for the selected network scale');
   }
 
   const commuters: SyntheticCommuter[] = [];
