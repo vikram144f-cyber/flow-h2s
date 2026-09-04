@@ -2,9 +2,34 @@
 
 import React, { useState } from 'react';
 import useSWR from 'swr';
-import { ShieldAlert, CheckCircle2, Zap, Clock, TrendingDown, MapPin, AlertTriangle, ArrowRight, Train, Bus, Activity, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Zap, Clock, MapPin, AlertTriangle, Train, Bus, Activity, RefreshCw } from 'lucide-react';
+import type { ComparisonResponse, FallbacksResponse, JourneyResponse } from '../lib/types';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+async function fetcher<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  const body: unknown = await response.json();
+  if (!response.ok) {
+    const error = body as { error?: string };
+    throw new Error(error.error || 'Request failed');
+  }
+  return body as T;
+}
+
+async function postJson(url: string, body?: unknown): Promise<unknown> {
+  const response = await fetch(url, {
+    method: 'POST',
+    ...(body === undefined ? {} : {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+  });
+  const payload: unknown = await response.json();
+  if (!response.ok) {
+    const error = payload as { error?: string };
+    throw new Error(error.error || 'Request failed');
+  }
+  return payload;
+}
 
 /** Formats an ISO timestamp string to a 12-hour AM/PM time using UTC (demo data is UTC). */
 function formatTime(isoStr: string | null | undefined): string {
@@ -17,19 +42,20 @@ function formatTime(isoStr: string | null | undefined): string {
 }
 
 export default function CommuterPage() {
-  const { data: journey, mutate: mutateJourney } = useSWR('/api/journey', fetcher, {
+  const { data: journey, mutate: mutateJourney } = useSWR<JourneyResponse>('/api/journey', fetcher, {
     refreshInterval: (data) => (data?.status === 'RECOVERED' || data?.status === 'COMPLETED') ? 0 : 2000
   });
 
   const { data: fallbacksData } = useSWR(
     journey?.status === 'AT_RISK' ? '/api/journey/fallbacks' : null,
-    fetcher
+    fetcher<FallbacksResponse>
   );
 
   const [isRecovering, setIsRecovering] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [selectedFallbackRouteId, setSelectedFallbackRouteId] = useState<string | null>(null);
   const [disruptionCount, setDisruptionCount] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // BUG-02: Fetch comparison data whenever RECOVERED so Journey Summary arrival
   // can be derived from the actual API response rather than a hardcoded string.
@@ -37,49 +63,59 @@ export default function CommuterPage() {
   // variables are derived later after the loading guard.
   const { data: comparisonData } = useSWR(
     (journey?.status === 'RECOVERED' || showComparison) ? '/api/journey/comparison' : null,
-    fetcher
+    fetcher<ComparisonResponse>
   );
 
   const handleRecover = async (fallbackId: string) => {
     setIsRecovering(true);
-    await fetch('/api/journey/recover', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fallbackRouteId: fallbackId })
-    });
-    
-    mutateJourney();
-    setIsRecovering(false);
+    setActionError(null);
+    try {
+      await postJson('/api/journey/recover', { fallbackRouteId: fallbackId });
+      await mutateJourney();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to recover the journey.');
+    } finally {
+      setIsRecovering(false);
+    }
   };
 
   const handleDemoDisruption = async () => {
     const nextCount = disruptionCount + 1;
-    setDisruptionCount(nextCount);
+    setActionError(null);
     // Inject cumulative delays (12 mins, then 24 mins, etc) to ensure confidence continually drops
-    await fetch('/api/inject-delay', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ legId: 'leg-1', delayMinutes: nextCount * 12 })
-    });
-    mutateJourney();
+    try {
+      await postJson('/api/inject-delay', { legId: 'leg-1', delayMinutes: nextCount * 12 });
+      setDisruptionCount(nextCount);
+      await mutateJourney();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to inject the delay.');
+    }
   };
 
   const handleContinueJourney = async () => {
-    await fetch('/api/journey/continue', { method: 'POST' });
-    // BUG-01: Clear the previous cycle's fallback selection so the next
-    // disruption cycle starts with no route pre-selected.
-    setSelectedFallbackRouteId(null);
-    // Close the comparison modal if open — comparison endpoint requires RECOVERED.
-    setShowComparison(false);
-    mutateJourney();
+    setActionError(null);
+    try {
+      await postJson('/api/journey/continue');
+      // Clear the previous cycle's fallback selection so the next disruption cycle starts cleanly.
+      setSelectedFallbackRouteId(null);
+      setShowComparison(false);
+      await mutateJourney();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to continue the journey.');
+    }
   };
 
   const handleReset = async () => {
-    await fetch('/api/reset-demo', { method: 'POST' });
-    setShowComparison(false);
-    setSelectedFallbackRouteId(null);
-    setDisruptionCount(0);
-    mutateJourney();
+    setActionError(null);
+    try {
+      await postJson('/api/reset-demo');
+      setShowComparison(false);
+      setSelectedFallbackRouteId(null);
+      setDisruptionCount(0);
+      await mutateJourney();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to reset the demo.');
+    }
   };
 
   if (!journey) {
@@ -98,27 +134,19 @@ export default function CommuterPage() {
   let themeColor = 'text-blue-500';
   let ringColor = 'stroke-blue-500';
   let bgTheme = 'bg-[#0B0F19]';
-  let badgeTheme = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-  let iconColor = 'text-blue-400';
 
   if (confidence < 85 && confidence >= 50) {
     themeColor = 'text-amber-500';
     ringColor = 'stroke-amber-500';
-    badgeTheme = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-    iconColor = 'text-amber-400';
   } else if (confidence < 50) {
     themeColor = 'text-red-500';
     ringColor = 'stroke-red-500';
-    badgeTheme = 'bg-red-500/20 text-red-400 border-red-500/30';
-    iconColor = 'text-red-400';
   }
   
   if (isRecovered) {
     themeColor = 'text-emerald-500';
     ringColor = 'stroke-emerald-500';
     bgTheme = 'bg-[#061B14]'; 
-    badgeTheme = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-    iconColor = 'text-emerald-400';
   } else if (isAtRisk) {
     bgTheme = 'bg-[#1F1212]';
   }
@@ -137,7 +165,7 @@ export default function CommuterPage() {
         <header className="px-6 pt-8 pb-4 flex justify-between items-center z-10 relative">
           <div>
             <h1 className="text-white font-black text-xl tracking-tight flex items-center">
-              FLOW <span className="ml-2 px-2 py-0.5 bg-white/10 rounded-md text-[10px] font-bold tracking-widest uppercase text-gray-400">Live</span>
+              FLOW <span className="ml-2 px-2 py-0.5 bg-white/10 rounded-md text-[10px] font-bold tracking-widest uppercase text-gray-400">Demo</span>
             </h1>
           </div>
           <div className="flex items-center space-x-2">
@@ -162,6 +190,11 @@ export default function CommuterPage() {
               <p className="text-xs text-gray-300 mt-0.5">Deterministic transit simulation</p>
             </div>
           </div>
+          {actionError && (
+            <div role="alert" className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-300">
+              {actionError}
+            </div>
+          )}
 
           {/* Confidence Hero */}
           <div className={`bg-white/[0.03] rounded-3xl p-6 border transition-colors duration-1000 ${isAtRisk ? 'border-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.1)]' : isRecovered ? 'border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.1)]' : 'border-white/5'} text-center relative overflow-hidden flex flex-col items-center justify-center`}>
@@ -191,7 +224,7 @@ export default function CommuterPage() {
               {isAtRisk ? 'Connection At Risk' : isRecovered ? 'Journey Recovered' : 'High Confidence'}
             </h2>
             <p className="text-gray-400 text-sm mt-2 font-medium">
-              {isAtRisk ? 'Your transfer is no longer reliable.' : isRecovered ? 'FLOW found a safer path.' : 'Your current route has a 11 min safety margin.'}
+              {isAtRisk ? 'Your transfer is no longer reliable.' : isRecovered ? 'FLOW found a safer path.' : 'Your current route is within the demo safety window.'}
             </p>
           </div>
 
@@ -330,11 +363,11 @@ export default function CommuterPage() {
                 </div>
               )}
 
-              {fallbacksData?.fallbacks?.length > 0 && (
+              {fallbacksData && fallbacksData.fallbacks.length > 0 && (
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-3 ml-1">FLOW Recommendations</p>
                   <div className="space-y-3">
-                    {fallbacksData.fallbacks.map((fb: any, idx: number) => {
+                    {fallbacksData.fallbacks.map((fb, idx) => {
                       const isSelected = selectedFallbackRouteId === fb.routeId;
                       return (
                       <div 

@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Activity, ShieldAlert, Zap, TrendingUp, TrendingDown, Users, Server, Maximize2, Minimize2, AlertTriangle, CheckCircle2, Play, Info } from 'lucide-react';
+import React, { useState } from 'react';
+import { Activity, ShieldAlert, TrendingUp, Users, Server, Maximize2, Minimize2, AlertTriangle, CheckCircle2, Play, Info } from 'lucide-react';
 import NetworkGraph from './NetworkGraph';
+import type { ApiErrorResponse, SimulationOutput, SimulationResponse } from '../../../lib/types';
 
 export default function OperatorDashboard() {
   const [commuterCount, setCommuterCount] = useState<number>(1000);
   const [seed, setSeed] = useState<number>(42);
   const [networkScale, setNetworkScale] = useState<string>('canonical');
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [simulationData, setSimulationData] = useState<any>(null);
+  const [simulationData, setSimulationData] = useState<SimulationResponse | ApiErrorResponse | null>(null);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'baseline' | 'flow'>('flow');
   const [presentationMode, setPresentationMode] = useState<boolean>(false);
@@ -24,10 +25,11 @@ export default function OperatorDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commuterCount: count, seed: s, strategy: 'comparison', networkScale: scale })
       });
-      const data = await res.json();
+      const data = await res.json() as SimulationResponse | ApiErrorResponse;
       setSimulationData(data);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
+      setSimulationData({ error: 'Unable to reach the simulation service.' });
     } finally {
       const endTime = performance.now();
       setExecutionTime(Number((endTime - startTime).toFixed(1)));
@@ -36,13 +38,12 @@ export default function OperatorDashboard() {
     }
   };
 
-  const handleDemoMode = () => {
-    setCommuterCount(1000);
-    setSeed(42);
-    runSimulation(1000, 42);
-  };
+  const hasSimulationResult = (data: SimulationResponse | ApiErrorResponse | null): data is SimulationResponse =>
+    data !== null && 'baseline' in data && 'flow' in data;
 
-  const activeData = simulationData ? simulationData[viewMode] : null;
+  const activeData: SimulationOutput | null = hasSimulationResult(simulationData)
+    ? simulationData[viewMode]
+    : null;
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-1000 bg-[#0B0F19] text-white overflow-hidden relative ${presentationMode ? 'p-0' : 'p-4 sm:p-8'}`}>
@@ -65,13 +66,13 @@ export default function OperatorDashboard() {
                 SIMULATED RESULT
               </span>
             </div>
-            {simulationData && !simulationData.error && typeof simulationData.totalCommuters === 'number' && (
+            {hasSimulationResult(simulationData) && (
               <div className="flex items-center text-sm font-bold text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 inline-flex">
                 <AlertTriangle className="w-4 h-4 mr-2" />
                 CENTRAL HUB DISRUPTION: {simulationData.totalCommuters.toLocaleString()} commuters affected
               </div>
             )}
-            {simulationData && simulationData.error && (
+            {simulationData && 'error' in simulationData && (
               <div className="flex items-center text-sm font-bold text-red-500 bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 inline-flex mt-2">
                 <AlertTriangle className="w-4 h-4 mr-2" />
                 ERROR: {simulationData.error}
@@ -174,7 +175,7 @@ export default function OperatorDashboard() {
         )}
 
         {/* DASHBOARD CONTENT */}
-        {!isRunning && simulationData && !simulationData.error && activeData && (
+        {!isRunning && hasSimulationResult(simulationData) && activeData && (
           <div className="flex-grow flex flex-col gap-6">
             
             {/* TOGGLE & HERO ROW */}
@@ -324,7 +325,7 @@ export default function OperatorDashboard() {
                 <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
                   <h3 className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-6">Route Load vs Capacity</h3>
                   <div className="space-y-6">
-                    {activeData.routeLoads.map((r: any) => {
+                    {activeData.routeLoads.map((r) => {
                       const cappedUtil = Math.min(r.utilizationPercentage, 100);
                       const overloadUtil = Math.max(0, r.utilizationPercentage - 100);
                       
@@ -369,7 +370,7 @@ export default function OperatorDashboard() {
                 <div className="bg-white/5 border border-white/10 rounded-3xl p-6 flex-grow flex flex-col overflow-hidden">
                   <h3 className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-4">Inspect FLOW Decisions</h3>
                   <div className="overflow-y-auto pr-2 space-y-3 flex-grow max-h-[300px] scrollbar-hide">
-                    {simulationData.examples.map((ex: any, idx: number) => (
+                    {simulationData.examples.map((ex, idx) => (
                       <div key={idx} className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
                         <div className="flex items-center space-x-2 mb-2">
                           <Users className="w-3 h-3 text-blue-400" />

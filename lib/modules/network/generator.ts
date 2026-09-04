@@ -160,5 +160,56 @@ export function generateNetwork(config: NetworkConfig): SyntheticNetwork {
     }
   }
 
+  // The generated transit lines can otherwise leave isolated stops or hubs.
+  // Add deterministic walking links to the reachable component so every
+  // generated origin/destination pair has a viable fallback path.
+  ensureNetworkReachability(nodesList, edges, 'hub-0');
+
   return { nodes, edges };
+}
+
+function ensureNetworkReachability(nodes: NetworkNode[], edges: NetworkEdge[], origin: string): void {
+  const adjacency = new Map<string, string[]>();
+  for (const edge of edges) {
+    const neighbors = adjacency.get(edge.from) || [];
+    neighbors.push(edge.to);
+    adjacency.set(edge.from, neighbors);
+  }
+
+  const reachable = new Set<string>([origin]);
+  const queue = [origin];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const neighbor of adjacency.get(current) || []) {
+      if (!reachable.has(neighbor)) {
+        reachable.add(neighbor);
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  const originNode = nodes.find((node) => node.id === origin);
+  if (!originNode) return;
+
+  for (const node of nodes) {
+    if (reachable.has(node.id)) continue;
+
+    const timeMinutes = Math.max(1, Math.round(distance(node, originNode) * 5));
+    const walkEdge: NetworkEdge = {
+      from: originNode.id,
+      to: node.id,
+      routeId: 'walk',
+      mode: 'walk',
+      timeMinutes,
+      capacity: Infinity,
+      costDelta: 0,
+      ecoImpact: 'green',
+      confidence: 100
+    };
+    edges.push(walkEdge, { ...walkEdge, from: node.id, to: originNode.id });
+  }
+}
+
+function distance(a: NetworkNode, b: NetworkNode): number {
+  return Math.hypot(a.lat - b.lat, a.lon - b.lon);
 }

@@ -5,11 +5,13 @@ import { GET as getFallbacks } from '../../../app/api/journey/fallbacks/route';
 import { POST as recoverJourney } from '../../../app/api/journey/recover/route';
 import { POST as continueJourney } from '../../../app/api/journey/continue/route';
 import { GET as getComparison } from '../../../app/api/journey/comparison/route';
+import { POST as injectDelay } from '../../../app/api/inject-delay/route';
 import { resetDatabaseToDeterministicSeed } from './seed-service';
 import { injectDelayService } from './delay-service';
-import { prisma } from '../../db';
 
-test('Journey API Integration Tests', async (t) => {
+const databaseConfigured = Boolean(process.env.DATABASE_URL);
+
+test('Journey API Integration Tests', { skip: databaseConfigured ? false : 'DATABASE_URL is not configured' }, async (t) => {
   // Reset DB before all tests
   await resetDatabaseToDeterministicSeed();
 
@@ -30,6 +32,35 @@ test('Journey API Integration Tests', async (t) => {
     assert.ok(data.fallbacks.length > 0);
     assert.strictEqual(data.fallbacks[0].routeId, 'Route B');
     assert.ok(data.fallbacks[0].finalScore > 0); // Ensures it's actually scored
+  });
+
+  await t.test('GET /api/journey/fallbacks rejects invalid weights as a client error', async () => {
+    const req = new Request('http://localhost/api/journey/fallbacks?wR=not-a-number');
+    const res = await getFallbacks(req);
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual((await res.json()).error, 'Weights must be finite non-negative numbers.');
+  });
+
+  await t.test('POST /api/journey/recover rejects malformed JSON', async () => {
+    const req = new Request('http://localhost/api/journey/recover', {
+      method: 'POST',
+      body: '{not-json',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const res = await recoverJourney(req);
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual((await res.json()).error, 'Missing fallbackRouteId');
+  });
+
+  await t.test('POST /api/inject-delay rejects malformed request fields', async () => {
+    const req = new Request('http://localhost/api/inject-delay', {
+      method: 'POST',
+      body: JSON.stringify({ legId: 'leg-1', delayMinutes: '12' }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const res = await injectDelay(req);
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual((await res.json()).error, 'Missing or invalid delayMinutes');
   });
 
   await t.test('POST /api/journey/recover fails if not AT_RISK', async () => {
@@ -82,8 +113,7 @@ test('Journey API Integration Tests', async (t) => {
   });
 
   await t.test('GET /api/journey/comparison calculates deterministic simulation', async () => {
-    const req = new Request('http://localhost/api/journey/comparison');
-    const res = await getComparison(req);
+    const res = await getComparison();
     assert.strictEqual(res.status, 200);
     const data = await res.json();
     
@@ -108,8 +138,7 @@ test('Journey API Integration Tests', async (t) => {
 
   await t.test('GET /api/journey/comparison fails if not RECOVERED', async () => {
     await resetDatabaseToDeterministicSeed();
-    const req = new Request('http://localhost/api/journey/comparison');
-    const res = await getComparison(req);
+    const res = await getComparison();
     assert.strictEqual(res.status, 400); // Because status is PLANNED now
   });
 

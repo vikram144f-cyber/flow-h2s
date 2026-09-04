@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { validateTransition, JourneyState } from './state-machine';
+import { validateTransition } from './state-machine';
 
 test('validateTransition', async (t) => {
   await t.test('allows valid transitions along the happy path', () => {

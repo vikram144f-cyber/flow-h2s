@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { runSimulation } from '../../../../lib/modules/simulation/generator';
+import { readJsonObject } from '../../../../lib/http';
 
 export async function POST(request: Request) {
   try {
-    const { commuterCount, seed, strategy, networkScale } = await request.json();
+    const body = await readJsonObject(request);
+    const commuterCount = body?.commuterCount;
+    const seed = body?.seed;
+    const strategy = body?.strategy;
+    const networkScale = body?.networkScale;
 
-    if (typeof commuterCount !== 'number' || typeof seed !== 'number') {
+    if (
+      typeof commuterCount !== 'number' ||
+      !Number.isInteger(commuterCount) ||
+      typeof seed !== 'number' ||
+      !Number.isFinite(seed)
+    ) {
       return NextResponse.json({ error: 'commuterCount and seed must be numbers' }, { status: 400 });
     }
 
@@ -14,11 +24,16 @@ export async function POST(request: Request) {
     }
 
     const simStrategy = strategy === 'comparison' ? 'comparison' : 'baseline';
-    const scale = networkScale || 'canonical';
+    const scale = typeof networkScale === 'string' ? networkScale : 'canonical';
+    const validScales = ['canonical', 'City Medium', 'City Large', 'City XLarge'];
+    if (!validScales.includes(scale)) {
+      return NextResponse.json({ error: 'networkScale is invalid' }, { status: 400 });
+    }
     const result = runSimulation(commuterCount, seed, simStrategy, scale);
     
     return NextResponse.json(result);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error('Error in /api/simulation/run:', error);
+    return NextResponse.json({ error: 'Unable to run simulation' }, { status: 500 });
   }
 }

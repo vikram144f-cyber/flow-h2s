@@ -4,7 +4,8 @@ export interface FallbackOption {
   confidence: number;
   timeDelta: number;
   costDelta: number;
-  ecoImpact: 'green' | 'neutral' | 'red';
+  ecoImpact: string;
+  capacity?: number;
 }
 
 export interface UserWeights {
@@ -33,6 +34,9 @@ export function rankFallbacks(
   weights: UserWeights
 ): ScoredFallback[] {
   // 1. Validate weights
+  if (![weights.wR, weights.wT, weights.wC, weights.wE].every(Number.isFinite)) {
+    throw new Error('Invalid weights: Weights must be finite numbers.');
+  }
   if (weights.wR < 0 || weights.wT < 0 || weights.wC < 0 || weights.wE < 0) {
     throw new Error('Invalid weights: Weights cannot be negative.');
   }

@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/db';
 import mockData from '../../../../static-data/mock-gtfs.json';
-import { rankFallbacks } from '../../../../lib/modules/routing/fallback-scoring';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // 1. Fetch the journey from DB
     const journey = await prisma.journey.findUnique({
@@ -15,14 +14,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Comparison is only available for RECOVERED journeys.' }, { status: 400 });
     }
 
-    const mockJourney = mockData.journeys.find(j => j.id === journey.id) as any;
+    const mockJourney = mockData.journeys.find(j => j.id === journey.id);
     if (!mockJourney) {
       return NextResponse.json({ error: 'Mock journey data not found.' }, { status: 404 });
     }
 
     // 2. Compute FLOW Outcome
     // FLOW uses the actual recovered route
-    const flowFallback = mockJourney.fallbacks?.find((f: any) => f.routeId === journey.recoveredRouteId);
+    const flowFallback = mockJourney.fallbacks?.find(f => f.routeId === journey.recoveredRouteId);
     if (!flowFallback) {
       return NextResponse.json({ error: 'FLOW recovered fallback not found in mock data.' }, { status: 404 });
     }
@@ -56,7 +55,6 @@ export async function GET(request: Request) {
     const transfer = mockJourney.transfers[0];
 
     const actualSimulatedDelayMinutes = leg1.actualSimulatedDelayMinutes || 12; // Fallback to 12 if not set
-    const leg1Departure = new Date(leg1.scheduledDeparture);
     const leg1Arrival = new Date(leg1.scheduledArrival);
     
     // Baseline arrives at the platform late
@@ -68,7 +66,7 @@ export async function GET(request: Request) {
     let baselineFinalDelay = actualSimulatedDelayMinutes;
     let baselineFinalArrival = new Date(new Date(leg2.scheduledArrival).getTime() + actualSimulatedDelayMinutes * 60000);
     let baselineFailureTime: Date | null = null;
-    let baselineRouteId = leg2.routeId;
+    const baselineRouteId = leg2.routeId;
 
     if (actualArrivalAtPlatform > leg2Departure) {
       baselineSuccess = false;
@@ -84,8 +82,6 @@ export async function GET(request: Request) {
       // Wait for the next train
       const minutesLate = (actualArrivalAtPlatform.getTime() - leg2Departure.getTime()) / 60000;
       const missedTrainsCount = Math.ceil(minutesLate / headwayMinutes);
-      const nextTrainDeparture = new Date(leg2Departure.getTime() + missedTrainsCount * headwayMinutes * 60000);
-      
       // Final arrival of baseline
       baselineFinalArrival = new Date(leg2.scheduledArrival);
       baselineFinalArrival.setUTCMinutes(baselineFinalArrival.getUTCMinutes() + (missedTrainsCount * headwayMinutes));
@@ -117,7 +113,7 @@ export async function GET(request: Request) {
       explanation
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/journey/comparison:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

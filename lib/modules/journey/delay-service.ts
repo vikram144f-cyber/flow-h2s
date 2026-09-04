@@ -1,4 +1,5 @@
 import { prisma } from '../../db';
+import { Prisma } from '@prisma/client';
 import { calculateConnectionConfidence } from '../routing/confidence';
 import { validateTransition, JourneyState } from './state-machine';
 import { generateExplainabilityPayload } from './explainability';
@@ -13,7 +14,7 @@ export interface InjectDelayParams {
 export async function injectDelayService(params: InjectDelayParams) {
   const { legId, delayMinutes } = params;
 
-  if (typeof delayMinutes !== 'number' || !isFinite(delayMinutes)) {
+  if (typeof delayMinutes !== 'number' || !Number.isFinite(delayMinutes)) {
     throw new Error('delayMinutes must be a valid finite number.');
   }
 
@@ -40,6 +41,10 @@ export async function injectDelayService(params: InjectDelayParams) {
 
   // 3. If there is no transfer, just return the updated leg (no confidence recalculation needed)
   if (!leg.transferFrom) {
+    await prisma.leg.update({
+      where: { id: legId },
+      data: { predictedArrival: newPredictedArrival }
+    });
     return { success: true, message: 'Delay injected, but no transfer is affected.', legId, newPredictedArrival };
   }
 
@@ -86,7 +91,7 @@ export async function injectDelayService(params: InjectDelayParams) {
     let bestFallbackConfidence = 0;
     
     if (mockJourney && mockJourney.fallbacks) {
-      const ranked = rankFallbacks(mockJourney.fallbacks as any, { wR: 0.7, wT: 0.15, wC: 0.1, wE: 0.05 });
+      const ranked = rankFallbacks(mockJourney.fallbacks, { wR: 0.7, wT: 0.15, wC: 0.1, wE: 0.05 });
       if (ranked.length > 0) {
         bestFallbackRouteId = ranked[0].routeId;
         bestFallbackConfidence = ranked[0].confidence;
@@ -106,7 +111,7 @@ export async function injectDelayService(params: InjectDelayParams) {
   }
 
   // 7. Execute Database Transaction securely
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.leg.update({
       where: { id: legId },
       data: { predictedArrival: newPredictedArrival }

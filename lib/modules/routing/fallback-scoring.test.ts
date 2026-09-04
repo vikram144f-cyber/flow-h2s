@@ -17,6 +17,13 @@ test('rankFallbacks validation', async (t) => {
     assert.throws(() => rankFallbacks(mockFallbacks, { wR: 1.5, wT: -0.5, wC: 0, wE: 0 }), /cannot be negative/);
   });
 
+  await t.test('throws error if weights are not finite', () => {
+    assert.throws(
+      () => rankFallbacks(mockFallbacks, { wR: Number.NaN, wT: 0.15, wC: 0.1, wE: 0.05 }),
+      /Weights must be finite numbers/
+    );
+  });
+
   await t.test('handles floating-point epsilon gracefully', () => {
     // 0.1 + 0.2 + 0.3 + 0.4 = 1.0, but in JS 0.1 + 0.2 = 0.30000000000000004
     const result = rankFallbacks(mockFallbacks, { wR: 0.1, wT: 0.2, wC: 0.3, wE: 0.4 });

@@ -235,7 +235,7 @@ for i, (time, desc) in enumerate(timeline):
 add_subtitle(slide6, "Prediction Lead Time = 21 minutes", top=6.2, color=EMERALD_SUCCESS, size=28, bold=True)
 add_subtitle(slide6, "SIMULATED RESULT", top=6.8, color=TEXT_SECONDARY, size=12, bold=True)
 
-add_notes(slide6, "Speaker Notes:\n(Transition to Live Demo of P0 Flow after this slide).\nIn our demo scenario, FLOW gives Aarav a 21-minute prediction lead time. He recovers his journey at 8:18 AM. Without FLOW, he wouldn't realize his connection was impossible until 8:38 AM.")
+add_notes(slide6, "Speaker Notes:\n(Transition to the FLOW Dashboard Demo after this slide).\nIn our demo scenario, FLOW gives Aarav a 21-minute prediction lead time. He recovers his journey at 8:18 AM. Without FLOW, he wouldn't realize his connection was impossible until 8:38 AM.")
 
 
 # ----------------------------------------------------
@@ -250,7 +250,7 @@ add_subtitle(slide7, "1 commuter  →  1,000 commuters  →  5,000 commuters  �
 text7 = "If everyone chooses the fastest fallback,\nthe fastest alternative becomes the next bottleneck.\n\nFLOW instead considers:\n\nUSER PREFERENCES\n+ ROUTE CAPACITY\n+ RELIABILITY\n+ TIME\n+ COST\n+ ECO IMPACT"
 add_subtitle(slide7, text7, top=3.2, color=TEXT_PRIMARY, size=22)
 
-add_notes(slide7, "Speaker Notes:\nSaving one user is easy. But at city scale, if every user takes the single fastest fallback route, we just create a new secondary bottleneck. FLOW solves this by orchestrating demand. We rank fallbacks based on individualized commuter weights and real-time route capacity constraints.")
+add_notes(slide7, "Speaker Notes:\nSaving one user is easy. But at city scale, if every user takes the single fastest fallback route, we just create a new secondary bottleneck. FLOW solves this by orchestrating demand. We rank fallbacks based on individualized commuter weights and simulated route capacity constraints.")
 
 
 # ----------------------------------------------------
@@ -272,7 +272,7 @@ tb_flow2.left = Inches(7)
 
 add_subtitle(slide8, "SIMULATED RESULT", top=6.8, color=TEXT_SECONDARY, size=12, bold=True)
 
-add_notes(slide8, "Speaker Notes:\nIn our deterministic 1,000 commuter simulation, the baseline routing forces 1,000 people onto a 200-capacity route, resulting in 800 failures. FLOW redistributes them perfectly across Route B and Route C, yielding 100% success. (Transition to Live Demo of Dashboard).")
+add_notes(slide8, "Speaker Notes:\nIn our deterministic 1,000 commuter simulation, the baseline routing forces 1,000 people onto a 200-capacity route, resulting in 800 failures. FLOW redistributes them across Route B and Route C, yielding 100% success in this fixture scenario. (Transition to the Dashboard Demo).")
 
 
 # ----------------------------------------------------
@@ -331,11 +331,11 @@ for i, step in enumerate(arch):
         arr = slide10.shapes.add_shape(MSO_SHAPE.DOWN_ARROW, Inches(2), Inches(y+0.45), Inches(0.15), Inches(0.2))
         arr.fill.solid(); arr.fill.fore_color.rgb = TEXT_SECONDARY; arr.line.fill.background()
 
-tech_stack = "Stack:\n• Next.js\n• TypeScript\n• Prisma\n• SQLite\n• Deterministic PRNG simulation\n• React SVG network visualization"
+tech_stack = "Stack:\n• Next.js\n• TypeScript\n• Prisma + MySQL\n• Deterministic PRNG simulation\n• React SVG network visualization"
 tb_tech = add_subtitle(slide10, tech_stack, top=2.5, color=TEXT_PRIMARY, size=20)
 tb_tech.left = Inches(7)
 
-add_notes(slide10, "Speaker Notes:\nOur architecture is a modular Next.js monolith using TypeScript, SQLite, and Prisma. We built a custom graph engine and fallback scoring heuristic entirely from scratch, utilizing a deterministic PRNG so that our simulations are reproducible.")
+add_notes(slide10, "Speaker Notes:\nOur architecture is a modular Next.js monolith using TypeScript, MySQL, and Prisma. We built a custom graph engine and fallback scoring heuristic entirely from scratch, utilizing a deterministic PRNG so that our simulations are reproducible.")
 
 
 # ----------------------------------------------------

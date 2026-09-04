@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import type { NetworkGraphData } from '../../../lib/types';
 
 interface NetworkGraphProps {
-  graphData: any;
+  graphData: NetworkGraphData;
   overloadedRoutes?: string[];
 }
 
@@ -15,7 +16,7 @@ export default function NetworkGraph({ graphData, overloadedRoutes = [] }: Netwo
     
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     
-    nodeList.forEach((n: any) => {
+    nodeList.forEach((n) => {
       if (n.lon < minX) minX = n.lon;
       if (n.lon > maxX) maxX = n.lon;
       if (n.lat < minY) minY = n.lat;
@@ -57,9 +58,9 @@ export default function NetworkGraph({ graphData, overloadedRoutes = [] }: Netwo
         preserveAspectRatio="xMidYMid meet"
       >
         {/* Draw edges first so they are behind nodes */}
-        {edges.map((edge: any, idx: number) => {
-          const fromNode = nodes.find((n: any) => n.id === edge.from) as any;
-          const toNode = nodes.find((n: any) => n.id === edge.to) as any;
+        {edges.map((edge, idx) => {
+          const fromNode = nodes.find((n) => n.id === edge.from);
+          const toNode = nodes.find((n) => n.id === edge.to);
           
           if (!fromNode || !toNode) return null;
           
@@ -87,7 +88,7 @@ export default function NetworkGraph({ graphData, overloadedRoutes = [] }: Netwo
         })}
 
         {/* Draw nodes */}
-        {nodes.map((node: any) => {
+        {nodes.map((node) => {
           const isHub = node.type === 'hub' || node.type === 'interchange';
           const r = isHub ? width * 0.015 : width * 0.008;
           const fill = node.type === 'interchange' ? '#f59e0b' : (isHub ? '#10b981' : '#94a3b8');

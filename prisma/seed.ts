@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { resetDatabaseToDeterministicSeed } from '../lib/modules/journey/seed-service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/db';
 
 async function main() {
   await resetDatabaseToDeterministicSeed();

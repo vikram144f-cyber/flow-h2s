@@ -1,4 +1,4 @@
-import { SyntheticNetwork, NetworkEdge, TransportMode } from './types';
+import { SyntheticNetwork, NetworkEdge } from './types';
 import { FallbackOption } from '../routing/fallback-scoring';
 
 export interface Path {

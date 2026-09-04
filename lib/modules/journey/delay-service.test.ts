@@ -9,7 +9,9 @@ async function resetDb() {
   await resetDatabaseToDeterministicSeed();
 }
 
-test('injectDelayService', async (t) => {
+const databaseConfigured = Boolean(process.env.DATABASE_URL);
+
+test('injectDelayService', { skip: databaseConfigured ? false : 'DATABASE_URL is not configured' }, async (t) => {
   // Reset before testing
   await resetDb();
 
@@ -69,6 +71,16 @@ test('injectDelayService', async (t) => {
     await resetDb();
     const result = await injectDelayService({ legId: 'leg-1', delayMinutes: 0 });
     assert.strictEqual(result.newConnectionConfidence, result.previousConnectionConfidence);
+  });
+
+  await t.test('persists a delay on a leg without a downstream transfer', async () => {
+    await resetDb();
+    const result = await injectDelayService({ legId: 'leg-2', delayMinutes: 7 });
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.message, 'Delay injected, but no transfer is affected.');
+
+    const leg = await prisma.leg.findUnique({ where: { id: 'leg-2' } });
+    assert.strictEqual(leg?.predictedArrival?.toISOString(), '2026-08-19T09:02:00.000Z');
   });
 
   await t.test('invalid leg ID throws error', async () => {

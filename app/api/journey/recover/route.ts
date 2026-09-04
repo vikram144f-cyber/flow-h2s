@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../../../lib/db';
 import { validateTransition, JourneyState } from '../../../../lib/modules/journey/state-machine';
 import mockData from '../../../../static-data/mock-gtfs.json';
+import { hasErrorMessage, readJsonObject } from '../../../../lib/http';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { fallbackRouteId } = body;
+    const body = await readJsonObject(request);
+    const fallbackRouteId = body?.fallbackRouteId;
 
-    if (!fallbackRouteId) {
+    if (typeof fallbackRouteId !== 'string' || fallbackRouteId.trim() === '') {
       return NextResponse.json({ error: 'Missing fallbackRouteId' }, { status: 400 });
     }
 
@@ -43,7 +45,7 @@ export async function POST(request: Request) {
     validateTransition('RECOVERY_OFFERED', 'RECOVERED');
 
     // 4. Persist the selected fallback/recovery information transactionally
-    const updatedJourney = await prisma.$transaction(async (tx) => {
+    const updatedJourney = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // We can update both status and recoveredRouteId in one go
       return tx.journey.update({
         where: { id: journey.id },
@@ -57,9 +59,9 @@ export async function POST(request: Request) {
 
     // 6. Return the updated journey
     return NextResponse.json({ success: true, message: `Recovered using ${fallbackRouteId}`, journey: updatedJourney });
-  } catch (error: any) {
-    if (error.message && error.message.includes('transition')) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+  } catch (error: unknown) {
+    if (hasErrorMessage(error, 'Invalid state transition')) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid state transition' }, { status: 409 });
     }
     console.error('Error in /api/journey/recover:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
